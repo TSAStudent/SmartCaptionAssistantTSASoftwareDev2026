@@ -8,6 +8,7 @@ interface UseSessionReturn {
   isHost: boolean;
   isConnected: boolean;
   error: string | null;
+  clearError: () => void;
   remoteCaptions: Caption[];
   remoteBookmarks: Bookmark[];
   createSession: () => Promise<Session | null>;
@@ -28,6 +29,7 @@ export function useSession(): UseSessionReturn {
   
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const lastTimestampRef = useRef<number>(0);
+  const lastClearedAtRef = useRef<number>(0);
 
   const stopPolling = useCallback(() => {
     if (pollingRef.current) {
@@ -52,6 +54,13 @@ export function useSession(): UseSessionReturn {
             setIsConnected(false);
             stopPolling();
             return;
+          }
+          
+          // If host cleared, clear our remote captions
+          const clearedAt = data.lastClearedAt as number | undefined;
+          if (clearedAt != null && clearedAt > lastClearedAtRef.current) {
+            lastClearedAtRef.current = clearedAt;
+            setRemoteCaptions([]);
           }
           
           if (data.captions && data.captions.length > 0) {
@@ -148,6 +157,9 @@ export function useSession(): UseSessionReturn {
         setRemoteCaptions(data.captions || []);
         setRemoteBookmarks(data.bookmarks || []);
         
+        if (data.lastClearedAt != null) {
+          lastClearedAtRef.current = data.lastClearedAt;
+        }
         if (data.captions && data.captions.length > 0) {
           lastTimestampRef.current = Math.max(
             ...data.captions.map((c: Caption) => c.timestamp)
@@ -186,6 +198,7 @@ export function useSession(): UseSessionReturn {
     setIsConnected(false);
     setRemoteCaptions([]);
     setRemoteBookmarks([]);
+    lastClearedAtRef.current = 0;
   }, [session, stopPolling]);
 
   const broadcastCaption = useCallback(async (caption: Caption) => {
@@ -241,11 +254,14 @@ export function useSession(): UseSessionReturn {
     }
   }, [session, isHost]);
 
+  const clearError = useCallback(() => setError(null), []);
+
   return {
     session,
     isHost,
     isConnected,
     error,
+    clearError,
     remoteCaptions,
     remoteBookmarks,
     createSession,

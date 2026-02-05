@@ -8,6 +8,8 @@ interface SessionPanelProps {
   session: Session | null;
   isHost: boolean;
   isConnected: boolean;
+  sessionError?: string | null;
+  onClearSessionError?: () => void;
   onCreateSession: () => Promise<Session | null>;
   onJoinSession: (code: string) => Promise<boolean>;
   onLeaveSession: () => Promise<void>;
@@ -17,6 +19,8 @@ export function SessionPanel({
   session,
   isHost,
   isConnected,
+  sessionError,
+  onClearSessionError,
   onCreateSession,
   onJoinSession,
   onLeaveSession,
@@ -73,9 +77,9 @@ export function SessionPanel({
       </button>
 
       {isOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 w-full max-w-md overflow-hidden animate-in slide-in-from-top-2 duration-300">
-            <div className="flex items-center justify-between p-6 bg-gradient-to-r from-violet-50 to-purple-50 dark:from-gray-800 dark:to-gray-700 border-b border-gray-200/50 dark:border-gray-700/50">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-start justify-center z-50 p-4 overflow-y-auto min-h-screen animate-in fade-in duration-200">
+          <div className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-gray-200/50 dark:border-gray-700/50 w-full max-w-md overflow-hidden my-4 sm:my-8 max-h-[calc(100vh-2rem)] flex flex-col animate-in slide-in-from-top-2 duration-300">
+            <div className="flex items-center justify-between p-4 sm:p-6 shrink-0 bg-gradient-to-r from-violet-50 to-purple-50 dark:from-gray-800 dark:to-gray-700 border-b border-gray-200/50 dark:border-gray-700/50">
               <h2 className="text-xl font-extrabold bg-gradient-to-r from-violet-600 to-purple-600 dark:from-violet-400 dark:to-purple-400 bg-clip-text text-transparent flex items-center gap-3">
                 <div className="p-2 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600">
                   <Users size={20} className="text-white" />
@@ -83,14 +87,22 @@ export function SessionPanel({
                 Session Sharing
               </h2>
               <button
-                onClick={() => setIsOpen(false)}
+                onClick={() => {
+                  setIsOpen(false);
+                  onClearSessionError?.();
+                }}
                 className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-2xl hover:scale-110 transition-transform rounded-lg p-1 hover:bg-gray-100 dark:hover:bg-gray-700 w-9 h-9 flex items-center justify-center"
               >
                 <X size={20} />
               </button>
             </div>
 
-            <div className="p-6 space-y-6">
+            <div className="p-4 sm:p-6 space-y-6 overflow-y-auto flex-1 min-h-0">
+              {sessionError && (
+                <div className="rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-3 text-sm text-red-700 dark:text-red-300">
+                  {sessionError}
+                </div>
+              )}
               {!isConnected ? (
                 <>
                   <div className="space-y-3">

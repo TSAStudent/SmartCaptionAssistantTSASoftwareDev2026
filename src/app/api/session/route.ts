@@ -9,9 +9,20 @@ interface SessionData {
   isActive: boolean;
   captions: Caption[];
   bookmarks: Bookmark[];
+  lastClearedAt?: number;
 }
 
-const sessions = new Map<string, SessionData>();
+// Persist sessions across Next.js hot reloads (dev) and reuse in serverless
+const globalForSession = globalThis as unknown as { sessions: Map<string, SessionData> };
+if (!globalForSession.sessions) {
+  globalForSession.sessions = new Map<string, SessionData>();
+}
+const sessions = globalForSession.sessions;
+
+function normalizeCode(code: string | undefined): string {
+  if (!code || typeof code !== 'string') return '';
+  return code.toUpperCase().trim().replace(/\s/g, '');
+}
 
 function generateSessionCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -30,6 +41,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { action, sessionCode, hostId, caption, bookmark } = body;
+    const codeParam = normalizeCode(sessionCode);
 
     if (action === 'create') {
       const code = generateSessionCode();
@@ -61,10 +73,16 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === 'join') {
-      const session = sessions.get(sessionCode);
+      if (!codeParam) {
+        return NextResponse.json(
+          { success: false, error: 'Please enter a session code' },
+          { status: 400 }
+        );
+      }
+      const session = sessions.get(codeParam);
       if (!session || !session.isActive) {
         return NextResponse.json(
-          { success: false, error: 'Session not found or inactive' },
+          { success: false, error: 'Session not found or inactive. Check the code and try again.' },
           { status: 404 }
         );
       }
@@ -83,7 +101,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === 'addCaption') {
-      const session = sessions.get(sessionCode);
+      const session = codeParam ? sessions.get(codeParam) : undefined;
       if (!session || !session.isActive) {
         return NextResponse.json(
           { success: false, error: 'Session not found or inactive' },
@@ -102,7 +120,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === 'addBookmark') {
-      const session = sessions.get(sessionCode);
+      const session = codeParam ? sessions.get(codeParam) : undefined;
       if (!session || !session.isActive) {
         return NextResponse.json(
           { success: false, error: 'Session not found or inactive' },
@@ -118,7 +136,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === 'end') {
-      const session = sessions.get(sessionCode);
+      const session = codeParam ? sessions.get(codeParam) : undefined;
       if (session) {
         session.isActive = false;
       }
@@ -126,9 +144,10 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === 'clear') {
-      const session = sessions.get(sessionCode);
+      const session = codeParam ? sessions.get(codeParam) : undefined;
       if (session) {
         session.captions = [];
+        session.lastClearedAt = Date.now();
       }
       return NextResponse.json({ success: true });
     }
@@ -148,7 +167,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const sessionCode = searchParams.get('code');
+  const sessionCode = normalizeCode(searchParams.get('code') ?? '');
   const since = searchParams.get('since');
 
   if (!sessionCode) {
@@ -177,5 +196,6 @@ export async function GET(request: NextRequest) {
     isActive: session.isActive,
     captions,
     bookmarks: session.bookmarks,
+    lastClearedAt: session.lastClearedAt,
   });
 }

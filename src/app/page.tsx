@@ -130,6 +130,8 @@ export default function Home() {
     session,
     isHost,
     isConnected,
+    error: sessionError,
+    clearError: clearSessionError,
     remoteCaptions,
     remoteBookmarks,
     createSession,
@@ -137,6 +139,7 @@ export default function Home() {
     endSession,
     broadcastCaption,
     broadcastBookmark,
+    broadcastClear,
   } = useSession();
 
   const [selectedTopic, setSelectedTopic] = useState<VocabularyTopic | null>(null);
@@ -151,8 +154,12 @@ export default function Home() {
   const displayCaptions = session && !isHost ? remoteCaptions : captions;
   const displayBookmarks = session && !isHost ? remoteBookmarks : bookmarks;
 
-  // Get full transcript for saving
+  // Get full transcript for saving (host uses local; joiner uses remote captions)
   const fullTranscript = getAllText();
+  const displayTranscript = session && !isHost
+    ? remoteCaptions.map((c) => c.text).join(' ').trim()
+    : fullTranscript;
+  const hasContentToSave = fullTranscript || (session && !isHost && remoteCaptions.length > 0) || isViewingSavedSession || captions.length > 0;
 
   // Handle session save
   const handleSaveSession = useCallback((classId: string, title: string) => {
@@ -282,6 +289,8 @@ export default function Home() {
                   session={session}
                   isHost={isHost}
                   isConnected={isConnected}
+                  sessionError={sessionError}
+                  onClearSessionError={clearSessionError}
                   onCreateSession={createSession}
                   onJoinSession={joinSession}
                   onLeaveSession={endSession}
@@ -365,8 +374,8 @@ export default function Home() {
           <div className="flex-1 flex flex-col bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-xl sm:rounded-2xl md:rounded-3xl shadow-2xl shadow-gray-900/10 dark:shadow-black/30 border border-gray-200/50 dark:border-gray-700/50 overflow-hidden min-w-0">
             {/* Caption Tools Bar */}
             <div className="flex items-center justify-between gap-2 sm:gap-3 md:gap-4 p-2 sm:p-3 md:p-4 border-b border-gray-200/50 dark:border-gray-700/50 bg-gradient-to-r from-gray-50/80 to-white/80 dark:from-gray-800/80 dark:to-gray-800/80 flex-wrap">
-              {/* Save to Class / Create New Session Button - Only for logged-in users */}
-              {authSession?.user && (fullTranscript || isViewingSavedSession || captions.length > 0) && (
+              {/* Save to Class / Create New Session Button - for logged-in users (host or joiner) */}
+              {authSession?.user && hasContentToSave && (
                 <>
                   {isViewingSavedSession ? (
                     <button
@@ -377,7 +386,7 @@ export default function Home() {
                       <Plus size={16} className="group-hover:rotate-90 transition-transform" />
                       <span className="hidden sm:inline">Create New Session</span>
                     </button>
-                  ) : fullTranscript ? (
+                  ) : (fullTranscript || (session && !isHost && remoteCaptions.length > 0)) ? (
                     <button
                       onClick={() => setShowSidebar(true)}
                       className="group flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-xl font-semibold transition-all duration-300 shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:scale-105 active:scale-95"
@@ -449,7 +458,8 @@ export default function Home() {
                 onStartListening={handleStartListening}
                 onStopListening={stopListening}
                 onWaitWhat={handleWaitWhat}
-                onClear={() => {
+                onClear={async () => {
+                  if (session && isHost) await broadcastClear();
                   clearCaptions();
                   setIsViewingSavedSession(false);
                 }}
@@ -526,8 +536,8 @@ export default function Home() {
           isOpen={showSidebar}
           onClose={() => setShowSidebar(false)}
           currentSessionTitle={sessionTitle}
-          currentTranscript={fullTranscript}
-          currentCaptions={captions}
+          currentTranscript={displayTranscript}
+          currentCaptions={displayCaptions}
           onSaveSession={handleSaveSession}
           onClearSession={handleClearSession}
           onLoadSession={handleLoadSession}
