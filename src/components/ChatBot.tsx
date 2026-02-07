@@ -3,26 +3,50 @@
 import { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Minimize2, Send, Bot, User, Loader2 } from 'lucide-react';
 
-interface Message {
+export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
 }
 
+export interface ChatMessageSaved {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+}
+
 const WELCOME_MESSAGE = "👋 Hello! I'm your AI assistant for the Smart Classroom Caption Assistant. I can help you with:\n\n• Understanding lecture concepts\n• Explaining key terms and definitions\n• Answering questions about the captions\n• Providing study tips and strategies\n\nHow can I help you today?";
 
-export function ChatBot() {
+const defaultMessages: ChatMessage[] = [
+  {
+    id: 'welcome',
+    role: 'assistant',
+    content: WELCOME_MESSAGE,
+    timestamp: new Date(),
+  },
+];
+
+interface ChatBotProps {
+  initialMessages?: ChatMessageSaved[] | null;
+  onMessagesChange?: (messages: ChatMessage[]) => void;
+}
+
+export function ChatBot({ initialMessages, onMessagesChange }: ChatBotProps = {}) {
   const [isOpen, setIsOpen] = useState(true);
   const [isMinimized, setIsMinimized] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 'welcome',
-      role: 'assistant',
-      content: WELCOME_MESSAGE,
-      timestamp: new Date(),
-    },
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    if (initialMessages && initialMessages.length > 0) {
+      return initialMessages.map((m) => ({
+        id: m.id,
+        role: m.role,
+        content: m.content,
+        timestamp: new Date(m.timestamp),
+      }));
+    }
+    return defaultMessages;
+  });
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -36,10 +60,14 @@ export function ChatBot() {
     scrollToBottom();
   }, [messages, isOpen]);
 
+  useEffect(() => {
+    onMessagesChange?.(messages);
+  }, [messages, onMessagesChange]);
+
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
 
-    const userMessage: Message = {
+    const userMessage: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
       content: input.trim(),
@@ -58,7 +86,7 @@ export function ChatBot() {
         },
         body: JSON.stringify({
           message: userMessage.content,
-          conversationHistory: messages.slice(-10).map((m) => ({
+          conversationHistory: [...messages, userMessage].slice(-10).map((m) => ({
             role: m.role,
             content: m.content,
           })),
@@ -71,7 +99,7 @@ export function ChatBot() {
         throw new Error(data.error || 'Failed to get response');
       }
 
-      const assistantMessage: Message = {
+      const assistantMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
         content: data.response,
@@ -80,7 +108,7 @@ export function ChatBot() {
 
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (error) {
-      const errorMessage: Message = {
+      const errorMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
         content: 'Sorry, I encountered an error. Please make sure your OpenAI API key is configured in .env.local and try again.',

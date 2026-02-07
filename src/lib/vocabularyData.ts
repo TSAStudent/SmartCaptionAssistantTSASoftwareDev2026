@@ -2,8 +2,8 @@ import { VocabularyTopic } from '@/types';
 
 export const vocabularyTopics: VocabularyTopic[] = [
   {
-    id: 'ap-physics-forces',
-    name: 'AP Physics - Forces',
+    id: 'physics-forces',
+    name: 'Physics - Forces',
     terms: [
       { term: 'net force', definition: 'The vector sum of all forces acting on an object' },
       { term: 'acceleration', definition: 'The rate of change of velocity over time' },
@@ -18,8 +18,8 @@ export const vocabularyTopics: VocabularyTopic[] = [
     ],
   },
   {
-    id: 'ap-chemistry-reactions',
-    name: 'AP Chemistry - Reactions',
+    id: 'chemistry-reactions',
+    name: 'Chemistry - Reactions',
     terms: [
       { term: 'reactant', definition: 'A substance that undergoes change in a chemical reaction' },
       { term: 'product', definition: 'A substance formed as a result of a chemical reaction' },
@@ -34,19 +34,34 @@ export const vocabularyTopics: VocabularyTopic[] = [
     ],
   },
   {
-    id: 'ap-biology-cells',
-    name: 'AP Biology - Cell Biology',
+    id: 'biology-ecology-organisms',
+    name: 'Biology - Ecology & Organisms',
     terms: [
-      { term: 'mitochondria', definition: 'The powerhouse of the cell, produces ATP through cellular respiration' },
+      { term: 'organism', definition: 'Any living thing, such as a plant, animal, or bacterium' },
+      { term: 'organisms', definition: 'Living things that carry out life processes' },
+      { term: 'ecology', definition: 'The study of how organisms interact with each other and their environment' },
+      { term: 'ecosystem', definition: 'A community of organisms and their physical environment' },
+      { term: 'food chain', definition: 'A sequence of organisms through which energy and nutrients flow' },
+      { term: 'producer', definition: 'An organism that makes its own food, e.g. plants via photosynthesis' },
+      { term: 'consumer', definition: 'An organism that eats other organisms for energy' },
+      { term: 'decomposer', definition: 'An organism that breaks down dead matter and recycles nutrients' },
+      { term: 'habitat', definition: 'The natural environment where an organism lives' },
+      { term: 'photosynthesis', definition: 'Process by which plants convert light energy to chemical energy' },
+      { term: 'cellular respiration', definition: 'Process of breaking down glucose to produce ATP' },
+    ],
+  },
+  {
+    id: 'biology-cells',
+    name: 'Biology - Cell Biology',
+    terms: [
+      { term: 'mitochondria', definition: 'Organelle that produces ATP through cellular respiration' },
       { term: 'ribosome', definition: 'Cellular structure responsible for protein synthesis' },
-      { term: 'endoplasmic reticulum', definition: 'Network of membranes involved in protein and lipid synthesis' },
-      { term: 'Golgi apparatus', definition: 'Organelle that modifies, packages, and ships proteins' },
       { term: 'cell membrane', definition: 'Phospholipid bilayer that controls what enters and exits the cell' },
       { term: 'nucleus', definition: 'Contains genetic material and controls cell activities' },
       { term: 'ATP', definition: 'Adenosine triphosphate, the energy currency of cells' },
-      { term: 'photosynthesis', definition: 'Process by which plants convert light energy to chemical energy' },
-      { term: 'cellular respiration', definition: 'Process of breaking down glucose to produce ATP' },
       { term: 'osmosis', definition: 'Movement of water across a semipermeable membrane' },
+      { term: 'Golgi apparatus', definition: 'Organelle that modifies, packages, and ships proteins' },
+      { term: 'endoplasmic reticulum', definition: 'Network of membranes involved in protein and lipid synthesis' },
     ],
   },
   {
@@ -66,8 +81,8 @@ export const vocabularyTopics: VocabularyTopic[] = [
     ],
   },
   {
-    id: 'us-history-civil-war',
-    name: 'US History - Civil War',
+    id: 'history-civil-war',
+    name: 'History - Civil War',
     terms: [
       { term: 'secession', definition: 'The act of withdrawing from the Union' },
       { term: 'Confederacy', definition: 'The Southern states that seceded from the Union' },

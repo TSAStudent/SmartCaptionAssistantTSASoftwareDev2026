@@ -26,6 +26,13 @@ export interface Class {
 
 import { Caption } from '@/types';
 
+export interface ChatMessageSaved {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string; // ISO string for serialization
+}
+
 export interface Session {
   id: string;
   title: string;
@@ -33,6 +40,7 @@ export interface Session {
   createdAt: string;
   transcript?: string; // Keep for backward compatibility
   captions?: Caption[]; // Store full captions with speaker info
+  chatMessages?: ChatMessageSaved[]; // AI chat during this session
 }
 
 interface ClassSidebarProps {
@@ -40,9 +48,10 @@ interface ClassSidebarProps {
   onClose: () => void;
   currentSessionTitle?: string;
   currentTranscript?: string;
-  currentCaptions?: Caption[]; // Add captions prop
+  currentCaptions?: Caption[];
+  currentChatMessages?: ChatMessageSaved[];
   onSaveSession?: (classId: string, sessionTitle: string) => void;
-  onLoadSession?: (captions: Caption[]) => void; // Change to accept captions
+  onLoadSession?: (captions: Caption[], chatMessages?: ChatMessageSaved[]) => void;
   onClearSession?: () => void;
 }
 
@@ -52,6 +61,7 @@ export function ClassSidebar({
   currentSessionTitle,
   currentTranscript,
   currentCaptions,
+  currentChatMessages,
   onSaveSession,
   onLoadSession,
   onClearSession,
@@ -183,11 +193,12 @@ export function ClassSidebar({
       title: sessionTitle.trim(),
       classId: targetClassId,
       createdAt: new Date().toISOString(),
-      transcript: currentTranscript, // Keep for backward compatibility
-      captions: currentCaptions && currentCaptions.length > 0 ? currentCaptions : [], // Save full captions with speaker info
+      transcript: currentTranscript,
+      captions: currentCaptions && currentCaptions.length > 0 ? currentCaptions : [],
+      chatMessages: currentChatMessages && currentChatMessages.length > 0 ? currentChatMessages : [],
     };
-    
-    console.log('Saving session with captions:', newSession.captions?.length || 0, 'captions');
+
+    console.log('Saving session with captions:', newSession.captions?.length || 0, 'captions', 'chat messages:', newSession.chatMessages?.length || 0);
 
     const updatedClasses = classes.map((c) =>
       c.id === targetClassId
@@ -220,33 +231,30 @@ export function ClassSidebar({
       console.error('onLoadSession callback is not defined');
       return;
     }
-    
-    // Prefer captions if available (has speaker info), otherwise fall back to transcript
-    if (session.captions && session.captions.length > 0) {
-      console.log('Loading captions:', session.captions.length, 'captions');
-      onLoadSession(session.captions);
-      // Close sidebar after loading
-      onClose();
-    } else if (session.transcript) {
-      console.log('Loading from transcript (fallback)');
-      // Fallback: convert transcript to captions (but won't have speaker info)
-      // This is for backward compatibility with old saved sessions
-      const fallbackCaptions: Caption[] = session.transcript
-        .split(/[.!?]+/)
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0)
-        .map((sentence, i) => ({
-          id: `loaded-caption-${Date.now()}-${i}`,
-          text: sentence,
-          timestamp: Date.now() - (i * 1000),
-          isFinal: true,
-          speaker: 'unknown' as const,
-        }));
-      onLoadSession(fallbackCaptions);
-      // Close sidebar after loading
+
+    const captionsToLoad: Caption[] =
+      session.captions && session.captions.length > 0
+        ? session.captions
+        : session.transcript
+          ? session.transcript
+              .split(/[.!?]+/)
+              .map((s) => s.trim())
+              .filter((s) => s.length > 0)
+              .map((sentence, i) => ({
+                id: `loaded-caption-${Date.now()}-${i}`,
+                text: sentence,
+                timestamp: Date.now() - (i * 1000),
+                isFinal: true,
+                speaker: 'unknown' as const,
+              }))
+          : [];
+
+    const hasContent = captionsToLoad.length > 0 || session.transcript || (session.chatMessages && session.chatMessages.length > 0);
+    if (hasContent) {
+      onLoadSession(captionsToLoad, session.chatMessages);
       onClose();
     } else {
-      console.error('Session has no captions or transcript');
+      console.error('Session has no captions, transcript, or chat');
     }
   };
 

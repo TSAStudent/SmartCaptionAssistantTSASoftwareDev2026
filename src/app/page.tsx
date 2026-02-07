@@ -13,8 +13,8 @@ import { VocabularySelector } from '@/components/VocabularySelector';
 import { Settings } from '@/components/Settings';
 import { SessionPanel } from '@/components/SessionPanel';
 import { FullScreenCaption } from '@/components/FullScreenCaption';
-import { ChatBot } from '@/components/ChatBot';
-import { ClassSidebar } from '@/components/ClassSidebar';
+import { ChatBot, type ChatMessage } from '@/components/ChatBot';
+import { ClassSidebar, type ChatMessageSaved } from '@/components/ClassSidebar';
 import { UserMenu } from '@/components/UserMenu';
 import { AppSettings, VocabularyTopic, Caption } from '@/types';
 import { isFirebaseConfigured } from '@/lib/firebase';
@@ -149,6 +149,9 @@ export default function Home() {
   const [showFullScreen, setShowFullScreen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [isViewingSavedSession, setIsViewingSavedSession] = useState(false);
+  const [chatMessagesForSave, setChatMessagesForSave] = useState<ChatMessage[]>([]);
+  const [loadedSessionChatMessages, setLoadedSessionChatMessages] = useState<ChatMessageSaved[] | null>(null);
+  const [sessionChatKey, setSessionChatKey] = useState(0);
 
   // Combine local and remote captions for display
   const displayCaptions = session && !isHost ? remoteCaptions : captions;
@@ -172,18 +175,18 @@ export default function Home() {
     clearCaptions();
     setSessionTitle('');
     setIsViewingSavedSession(false);
+    setLoadedSessionChatMessages(null);
+    setSessionChatKey((k) => k + 1);
   }, [clearCaptions]);
 
-  // Handle loading a saved session
-  const handleLoadSession = useCallback((captions: Caption[]) => {
-    // Load captions directly, preserving speaker information
+  // Handle loading a saved session (captions + optional AI chat from that session)
+  const handleLoadSession = useCallback((captions: Caption[], chatMessages?: ChatMessageSaved[]) => {
+    setIsViewingSavedSession(true);
     if (captions && captions.length > 0) {
-      console.log('Loading session, setting isViewingSavedSession to true, captions:', captions.length);
-      setIsViewingSavedSession(true); // Mark that we're viewing a saved session FIRST
       loadCaptions(captions);
-    } else {
-      console.log('No captions to load');
     }
+    setLoadedSessionChatMessages(chatMessages ?? null);
+    setSessionChatKey((k) => k + 1);
   }, [loadCaptions]);
 
   // Debug: Log when isViewingSavedSession changes
@@ -196,6 +199,8 @@ export default function Home() {
     clearCaptions();
     setSessionTitle('');
     setIsViewingSavedSession(false);
+    setLoadedSessionChatMessages(null);
+    setSessionChatKey((k) => k + 1);
   }, [clearCaptions]);
 
   // Wrap startListening to reset saved session flag when starting new session
@@ -520,7 +525,11 @@ export default function Home() {
       )}
 
       {/* AI Chatbot - Floating in bottom corner */}
-      <ChatBot />
+      <ChatBot
+        key={sessionChatKey}
+        initialMessages={loadedSessionChatMessages ?? undefined}
+        onMessagesChange={setChatMessagesForSave}
+      />
 
       {/* Blur Overlay when sidebar is open */}
       {showSidebar && authSession?.user && (
@@ -538,6 +547,12 @@ export default function Home() {
           currentSessionTitle={sessionTitle}
           currentTranscript={displayTranscript}
           currentCaptions={displayCaptions}
+          currentChatMessages={chatMessagesForSave.map((m) => ({
+            id: m.id,
+            role: m.role,
+            content: m.content,
+            timestamp: m.timestamp.toISOString(),
+          }))}
           onSaveSession={handleSaveSession}
           onClearSession={handleClearSession}
           onLoadSession={handleLoadSession}
