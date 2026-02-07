@@ -39,18 +39,22 @@ export interface DeepgramConfig {
 
 export class DeepgramClient {
   private socket: WebSocket | null = null;
-  private mediaRecorder: MediaRecorder | null = null;
   private stream: MediaStream | null = null;
   private config: DeepgramConfig;
   private isConnected = false;
+  private isStopped = false;
   private teacherSpeakerId: number | null = null;
   private speakerHistory: Map<number, number> = new Map();
+  private audioContext: AudioContext | null = null;
+  private audioSource: MediaStreamAudioSourceNode | null = null;
+  private audioProcessor: ScriptProcessorNode | null = null;
 
   constructor(config: DeepgramConfig) {
     this.config = config;
   }
 
   async start(): Promise<void> {
+    this.isStopped = false;
     try {
       this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       
@@ -107,14 +111,15 @@ export class DeepgramClient {
   private startRecording(): void {
     if (!this.stream || !this.socket) return;
 
-    const audioContext = new AudioContext({ sampleRate: 16000 });
-    const source = audioContext.createMediaStreamSource(this.stream);
-    const processor = audioContext.createScriptProcessor(4096, 1, 1);
+    this.audioContext = new AudioContext({ sampleRate: 16000 });
+    this.audioSource = this.audioContext.createMediaStreamSource(this.stream);
+    this.audioProcessor = this.audioContext.createScriptProcessor(4096, 1, 1);
 
-    source.connect(processor);
-    processor.connect(audioContext.destination);
+    this.audioSource.connect(this.audioProcessor);
+    this.audioProcessor.connect(this.audioContext.destination);
 
-    processor.onaudioprocess = (event) => {
+    this.audioProcessor.onaudioprocess = (event) => {
+      if (this.isStopped) return;
       if (this.socket?.readyState === WebSocket.OPEN) {
         const inputData = event.inputBuffer.getChannelData(0);
         const pcmData = this.floatTo16BitPCM(inputData);
@@ -134,6 +139,7 @@ export class DeepgramClient {
   }
 
   private handleMessage(data: string): void {
+    if (this.isStopped) return;
     try {
       const response: DeepgramResponse = JSON.parse(data);
       
@@ -197,19 +203,33 @@ export class DeepgramClient {
   }
 
   stop(): void {
+    this.isStopped = true;
+
+    // Tear down audio pipeline first so no more data is captured or sent
+    if (this.audioProcessor) {
+      try {
+        this.audioProcessor.disconnect();
+        this.audioProcessor.onaudioprocess = null;
+      } catch (_) { /* already disconnected */ }
+      this.audioProcessor = null;
+    }
+    if (this.audioSource) {
+      try {
+        this.audioSource.disconnect();
+      } catch (_) { /* already disconnected */ }
+      this.audioSource = null;
+    }
+    if (this.audioContext) {
+      this.audioContext.close().catch(() => {});
+      this.audioContext = null;
+    }
+
     if (this.socket) {
       if (this.socket.readyState === WebSocket.OPEN) {
         this.socket.send(JSON.stringify({ type: 'CloseStream' }));
       }
       this.socket.close();
       this.socket = null;
-    }
-
-    if (this.mediaRecorder) {
-      if (this.mediaRecorder.state !== 'inactive') {
-        this.mediaRecorder.stop();
-      }
-      this.mediaRecorder = null;
     }
 
     if (this.stream) {
