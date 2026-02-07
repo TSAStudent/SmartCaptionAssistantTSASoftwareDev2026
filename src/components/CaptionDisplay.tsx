@@ -31,13 +31,16 @@ export function CaptionDisplay({
   teacherOnlyMode = false,
 }: CaptionDisplayProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const bottomAnchorRef = useRef<HTMLDivElement>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
 
+  // Auto-scroll to bottom as new captions or transcript appear (after DOM update)
   useEffect(() => {
-    if (containerRef.current) {
-      containerRef.current.scrollTop = containerRef.current.scrollHeight;
-    }
+    const raf = requestAnimationFrame(() => {
+      bottomAnchorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    });
+    return () => cancelAnimationFrame(raf);
   }, [captions, currentTranscript]);
 
   const getFontSizeClass = () => {
@@ -276,6 +279,9 @@ export function CaptionDisplay({
           </div>
         </div>
       )}
+
+      {/* Anchor for auto-scroll: keeps view at latest caption */}
+      <div ref={bottomAnchorRef} aria-hidden="true" className="h-0 w-full shrink-0" />
     </div>
   );
 }
